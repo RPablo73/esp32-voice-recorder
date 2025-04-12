@@ -1,58 +1,63 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ESP32 Voice Recorder</title>
+  <meta charset="UTF-8">
+  <title>Voice Recorder</title>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 40px; }
-    button { padding: 10px 20px; font-size: 16px; margin: 10px; }
-    audio { margin-top: 20px; width: 300px; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      text-align: center;
+    }
+    button {
+      font-size: 18px;
+      margin: 10px;
+      padding: 10px 20px;
+    }
+    audio {
+      display: block;
+      margin: 20px auto;
+    }
   </style>
 </head>
 <body>
-  <h2>🎙️ ESP32 Voice Recorder</h2>
-  <p>Press record and speak. You can download the file or upload to ESP32 later.</p>
+  <h1>🎙️ ESP32 Voice Recorder</h1>
+  <p>Press the button to start or stop recording your voice.</p>
 
-  <button id="record">⏺️ Record</button>
-  <button id="stop" disabled>⏹️ Stop</button>
-  <br>
-  <audio id="audio" controls></audio>
-  <br>
-  <a id="download" href="#" download="recording.wav">⬇️ Download</a>
+  <button id="recordBtn">Start Recording</button>
+  <audio id="player" controls></audio>
 
   <script>
     let mediaRecorder;
-    let audioChunks = [];
-
-    const recordBtn = document.getElementById("record");
-    const stopBtn = document.getElementById("stop");
-    const audio = document.getElementById("audio");
-    const downloadLink = document.getElementById("download");
+    let chunks = [];
+    const recordBtn = document.getElementById('recordBtn');
+    const player = document.getElementById('player');
 
     recordBtn.onclick = async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.start();
-      audioChunks = [];
+      if (!mediaRecorder || mediaRecorder.state === "inactive") {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
+        recordBtn.textContent = "Stop Recording";
 
-      mediaRecorder.addEventListener("dataavailable", event => {
-        audioChunks.push(event.data);
-      });
+        mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+          const audioURL = URL.createObjectURL(blob);
+          player.src = audioURL;
 
-      mediaRecorder.addEventListener("stop", () => {
-        const blob = new Blob(audioChunks, { type: "audio/wav" });
-        const url = URL.createObjectURL(blob);
-        audio.src = url;
-        downloadLink.href = url;
-      });
+          // Optional: Automatically download the file
+          const a = document.createElement("a");
+          a.href = audioURL;
+          a.download = "recording.webm";
+          a.click();
 
-      recordBtn.disabled = true;
-      stopBtn.disabled = false;
-    };
-
-    stopBtn.onclick = () => {
-      mediaRecorder.stop();
-      recordBtn.disabled = false;
-      stopBtn.disabled = true;
+          chunks = [];
+        };
+      } else {
+        mediaRecorder.stop();
+        recordBtn.textContent = "Start Recording";
+      }
     };
   </script>
 </body>
