@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ESP32 Voice Recorder</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 40px; }
+    button { padding: 10px 20px; font-size: 16px; margin: 10px; }
+    audio { margin-top: 20px; width: 300px; }
+  </style>
+</head>
+<body>
+  <h2>🎙️ ESP32 Voice Recorder</h2>
+  <p>Press record and speak. You can download the file or upload to ESP32 later.</p>
+
+  <button id="record">⏺️ Record</button>
+  <button id="stop" disabled>⏹️ Stop</button>
+  <br>
+  <audio id="audio" controls></audio>
+  <br>
+  <a id="download" href="#" download="recording.wav">⬇️ Download</a>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+
+    const recordBtn = document.getElementById("record");
+    const stopBtn = document.getElementById("stop");
+    const audio = document.getElementById("audio");
+    const downloadLink = document.getElementById("download");
+
+    recordBtn.onclick = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.start();
+      audioChunks = [];
+
+      mediaRecorder.addEventListener("dataavailable", event => {
+        audioChunks.push(event.data);
+      });
+
+      mediaRecorder.addEventListener("stop", () => {
+        const blob = new Blob(audioChunks, { type: "audio/wav" });
+        const url = URL.createObjectURL(blob);
+        audio.src = url;
+        downloadLink.href = url;
+      });
+
+      recordBtn.disabled = true;
+      stopBtn.disabled = false;
+    };
+
+    stopBtn.onclick = () => {
+      mediaRecorder.stop();
+      recordBtn.disabled = false;
+      stopBtn.disabled = true;
+    };
+  </script>
+</body>
+</html>
