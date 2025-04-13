@@ -1,63 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
   <title>Voice Recorder</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      text-align: center;
-    }
-    button {
-      font-size: 18px;
-      margin: 10px;
-      padding: 10px 20px;
-    }
-    audio {
-      display: block;
-      margin: 20px auto;
-    }
-  </style>
 </head>
 <body>
-  <h1>🎙️ ESP32 Voice Recorder</h1>
-  <p>Press the button to start or stop recording your voice.</p>
-
+  <h1> Voice Recorder</h1>
   <button id="recordBtn">Start Recording</button>
-  <audio id="player" controls></audio>
+  <button id="stopBtn" disabled>Stop & Upload</button>
+  <p id="status"></p>
 
   <script>
     let mediaRecorder;
-    let chunks = [];
-    const recordBtn = document.getElementById('recordBtn');
-    const player = document.getElementById('player');
+    let audioChunks = [];
+
+    const recordBtn = document.getElementById("recordBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const status = document.getElementById("status");
 
     recordBtn.onclick = async () => {
-      if (!mediaRecorder || mediaRecorder.state === "inactive") {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        mediaRecorder.start();
-        recordBtn.textContent = "Stop Recording";
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
 
-        mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(chunks, { type: 'audio/webm' });
-          const audioURL = URL.createObjectURL(blob);
-          player.src = audioURL;
+      mediaRecorder.ondataavailable = event => {
+        audioChunks.push(event.data);
+      };
 
-          // Optional: Automatically download the file
-          const a = document.createElement("a");
-          a.href = audioURL;
-          a.download = "recording.webm";
-          a.click();
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('audio', blob, 'recording.webm');
 
-          chunks = [];
-        };
-      } else {
-        mediaRecorder.stop();
-        recordBtn.textContent = "Start Recording";
-      }
+        status.textContent = "Uploading...";
+
+        // Replace with your ESP32 AP IP address
+        fetch('http://192.168.4.1/uploadRecording', {
+          method: 'POST',
+          body: formData
+        }).then(response => {
+          if (response.ok) {
+            status.textContent = " Uploaded successfully!";
+          } else {
+            status.textContent = " Upload failed.";
+          }
+        }).catch(() => {
+          status.textContent = " Could not connect to ESP32.";
+        });
+      };
+
+      mediaRecorder.start();
+      status.textContent = " Recording...";
+      recordBtn.disabled = true;
+      stopBtn.disabled = false;
+    };
+
+    stopBtn.onclick = () => {
+      mediaRecorder.stop();
+      status.textContent = " Stopping...";
+      recordBtn.disabled = false;
+      stopBtn.disabled = true;
     };
   </script>
 </body>
